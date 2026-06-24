@@ -81,19 +81,29 @@ function importanceScore(s: string, i: number, total: number): number {
   );
 }
 
-/* ── 섹션마다 글자색·배경색·밑줄 각 1개 이상 선정 ── */
+/* ── 섹션마다 2~3개 꾸밈, 패턴을 불규칙하게 순환 ── */
 function applyDecorations(sections: Section[]): Section[] {
-  const cycle: DecoType[] = ["text", "bg", "underline"];
-  return sections.map((sec) => {
+  const patterns: DecoType[][] = [
+    ["text", "bg", "underline"],
+    ["text", "bg"],
+    ["bg", "underline", "text"],
+    ["text", "underline"],
+    ["bg", "text", "underline"],
+    ["underline", "text"],
+    ["text", "bg", "underline"],
+    ["bg", "underline"],
+  ];
+  return sections.map((sec, idx) => {
     if (sec.sentences.length === 0) return sec;
+    const pattern = patterns[idx % patterns.length];
     const scored = sec.sentences
       .map((s, i) => ({ s, i, score: importanceScore(s, i, sec.sentences.length) }))
       .sort((a, b) => b.score - a.score);
-    const count = Math.max(3, Math.min(5, Math.ceil(sec.sentences.length * 0.4)));
-    const picked = scored.slice(0, Math.min(count, sec.sentences.length)).sort((a, b) => a.i - b.i);
+    const count = Math.min(pattern.length, sec.sentences.length);
+    const picked = scored.slice(0, count).sort((a, b) => a.i - b.i);
     return {
       ...sec,
-      decorated: picked.map((item, j) => ({ sentence: item.s, deco: cycle[j % cycle.length] })),
+      decorated: picked.map((item, j) => ({ sentence: item.s, deco: pattern[j] })),
     };
   });
 }
