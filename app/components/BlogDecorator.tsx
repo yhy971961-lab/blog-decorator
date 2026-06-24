@@ -36,36 +36,37 @@ function splitSentences(text: string): string[] {
     .filter((s) => s.length > 4);
 }
 
-/* ── 소제목 여부 판단: 단독 한 줄 + 35자 이하 ── */
-function isSubtitle(block: string): boolean {
-  const lines = block.trim().split("\n").map((l) => l.trim()).filter(Boolean);
-  return lines.length === 1 && block.trim().length <= 35;
+/* ── 소제목 판단: 줄이 숫자+마침표로 시작 (1. 2. 3. …) ── */
+function isSubtitleLine(line: string): boolean {
+  return /^\d+\./.test(line.trim());
 }
 
-/* ── 입력 텍스트 → 섹션 구성 ── */
+/* ── 입력 텍스트 → 섹션 구성 (줄 단위 처리) ── */
 function buildSections(rawText: string): Section[] {
-  const blocks = rawText.split(/\n\s*\n/).map((b) => b.trim()).filter(Boolean);
   const sections: Section[] = [];
   let subtitle: string | null = null;
-  let sentences: string[] = [];
+  let bodyLines: string[] = [];
 
   function flush() {
-    if (sentences.length > 0) {
-      sections.push({ subtitle, sentences, decorated: [] });
-      subtitle = null;
-      sentences = [];
+    const body = bodyLines.join("\n").trim();
+    if (body.length > 0) {
+      sections.push({ subtitle, sentences: splitSentences(body), decorated: [] });
     }
+    subtitle = null;
+    bodyLines = [];
   }
 
-  for (const block of blocks) {
-    if (isSubtitle(block)) {
+  for (const line of rawText.split("\n")) {
+    const trimmed = line.trim();
+    if (isSubtitleLine(trimmed)) {
       flush();
-      subtitle = block;
+      subtitle = trimmed;
     } else {
-      sentences = [...sentences, ...splitSentences(block)];
+      bodyLines.push(trimmed);
     }
   }
   flush();
+
   return sections;
 }
 
