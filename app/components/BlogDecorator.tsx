@@ -113,51 +113,15 @@ function injectKeyword(sections: Section[], kw: string, isMain: boolean): Sectio
   return result;
 }
 
-/* ── 밑줄용 핵심 구절 추출 (문장 전체가 아니어도 됨) ── */
-function extractKeyPhrase(sent: string): string {
-  const clean = sent.replace(/[.!?。]$/, "").trim();
-
-  // 서술어 직전 명사구 추출: "~입니다/합니다/됩니다" 앞 마지막 명사구
-  const m = clean.match(/\s([\S]{2,10})(?:입니다|합니다|됩니다|이에요|예요|이죠|였습니다|하였습니다|되었습니다)$/);
-  if (m) {
-    const phrase = m[1].replace(/(을|를|은|는|이|가|의|에서|에|로|과|와|도)$/, "").trim();
-    if (phrase.length >= 2) return phrase;
-  }
-
-  // 마지막 2단어 추출 (조사 제거)
-  const words = clean.split(/\s+/);
-  if (words.length >= 2) {
-    const phrase = words.slice(-2).join(" ").replace(/(을|를|은|는|이|가|의|에서|에|로|과|와|도)$/, "").trim();
-    if (phrase.length >= 2) return phrase;
-  }
-
-  return sent; // 추출 실패 시 전체 문장
-}
-
 /* ── HTML 꾸밈 적용 ── */
 function decorateHtml(sent: string, deco: DecoType, preset: Preset): string {
-  if (deco === "underline") {
-    const phrase = extractKeyPhrase(sent);
-    if (phrase === sent) {
-      // 전체 문장에 밑줄
-      return `<span style="font-weight:bold;text-decoration:underline;">${sent}</span>`;
-    }
-    // 핵심 구절에만 밑줄, 나머지는 일반 텍스트
-    const idx = sent.lastIndexOf(phrase);
-    if (idx < 0) return `<span style="font-weight:bold;text-decoration:underline;">${sent}</span>`;
-    return (
-      sent.slice(0, idx) +
-      `<span style="font-weight:bold;text-decoration:underline;">${phrase}</span>` +
-      sent.slice(idx + phrase.length)
-    );
-  }
-
   let style = "font-weight:bold;";
-  if (deco === "text") {
+  if (deco === "underline") {
+    style += "text-decoration:underline;";
+  } else if (deco === "text") {
     style += `color:${preset.textColor};`;
     if (preset.textWithUnderline) style += "text-decoration:underline;";
   } else {
-    // bg
     style += `background-color:${preset.bgColor};`;
     if (preset.darkBg) style += "color:#ffffff;";
   }
