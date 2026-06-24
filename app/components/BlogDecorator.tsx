@@ -81,30 +81,66 @@ function importanceScore(s: string, i: number, total: number): number {
   );
 }
 
-/* ── 섹션마다 2~3개 꾸밈, 패턴을 불규칙하게 순환 ── */
+/* ── 큰따옴표 포함 여부 ── */
+function hasQuote(s: string): boolean {
+  return /[""“”]/.test(s);
+}
+
+/* ── 섹션마다 꾸밈 적용
+   - 큰따옴표 문장 → 글자색 우선
+   - 나머지 슬롯(총 2~3개)은 배경색·밑줄로 채움 ── */
 function applyDecorations(sections: Section[]): Section[] {
-  const patterns: DecoType[][] = [
-    ["text", "bg", "underline"],
-    ["text", "bg"],
-    ["bg", "underline", "text"],
-    ["text", "underline"],
-    ["bg", "text", "underline"],
-    ["underline", "text"],
-    ["text", "bg", "underline"],
+  // 섹션별 최대 꾸밈 수 (2·3 교대)
+  const maxCounts =    [3, 2, 3, 2, 3, 2, 3, 2];
+  // 비따옴표 슬롯에 쓸 효과 패턴
+  const fillPatterns: DecoType[][] = [
     ["bg", "underline"],
+    ["underline", "bg"],
+    ["bg"],
+    ["underline"],
+    ["bg", "underline"],
+    ["underline"],
+    ["bg", "underline"],
+    ["bg"],
   ];
+
   return sections.map((sec, idx) => {
     if (sec.sentences.length === 0) return sec;
-    const pattern = patterns[idx % patterns.length];
-    const scored = sec.sentences
-      .map((s, i) => ({ s, i, score: importanceScore(s, i, sec.sentences.length) }))
-      .sort((a, b) => b.score - a.score);
-    const count = Math.min(pattern.length, sec.sentences.length);
-    const picked = scored.slice(0, count).sort((a, b) => a.i - b.i);
-    return {
-      ...sec,
-      decorated: picked.map((item, j) => ({ sentence: item.s, deco: pattern[j] })),
-    };
+
+    const maxCount = maxCounts[idx % maxCounts.length];
+    const decorated: DecoratedSentence[] = [];
+    const used = new Set<string>();
+
+    // 1단계: 큰따옴표 문장 → 글자색
+    for (const s of sec.sentences) {
+      if (decorated.length >= maxCount) break;
+      if (hasQuote(s) && !used.has(s)) {
+        decorated.push({ sentence: s, deco: "text" });
+        used.add(s);
+      }
+    }
+
+    // 2단계: 남은 슬롯 → 중요도 순 bg·underline
+    const remaining = maxCount - decorated.length;
+    if (remaining > 0) {
+      const fills = fillPatterns[idx % fillPatterns.length].slice(0, remaining);
+      const scored = sec.sentences
+        .map((s, i) => ({ s, i, score: importanceScore(s, i, sec.sentences.length) }))
+        .filter(item => !used.has(item.s))
+        .sort((a, b) => b.score - a.score);
+      fills.forEach((deco, j) => {
+        if (scored[j]) {
+          decorated.push({ sentence: scored[j].s, deco });
+          used.add(scored[j].s);
+        }
+      });
+    }
+
+    // 원문 순서로 정렬
+    const order = new Map(sec.sentences.map((s, i) => [s, i]));
+    decorated.sort((a, b) => (order.get(a.sentence) ?? 0) - (order.get(b.sentence) ?? 0));
+
+    return { ...sec, decorated };
   });
 }
 
